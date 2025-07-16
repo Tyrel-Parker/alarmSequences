@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm Sequence Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #51cf66, #40c057);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #ffd43b, #fab005);
+        }
+
+        .btn-info {
+            background: linear-gradient(45deg, #339af0, #228be6);
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .alarm-item {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: move;
+        }
+
+        .alarm-item-header {
+            font-weight: 600;
+            color: #1976d2;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alarm-item-details {
+            font-size: 12px;
+            color: #424242;
+        }
+
+        .sequence-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sequence-item-info {
+            flex: 1;
+        }
+
+        .sequence-item-name {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .sequence-item-details {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .running-sequences {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .active-alarms-container {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 10px 0;
+            margin-top: 15px;
+        }
+
+        .active-alarms-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .active-alarms-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .active-alarms-container::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        .active-alarm-card {
+            min-width: 280px;
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+            color: white;
+            border-radius: 12px;
+            padding: 15px;
+            animation: pulse 2s infinite;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .active-alarm-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .active-alarm-description {
+            font-size: 14px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .active-alarm-countdown {
+            font-size: 24px;
+            font-weight: 700;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .active-alarm-progress {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .running-sequence {
+            background: #e8f5e8;
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .running-sequence-header {
+            font-weight: 600;
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+
+        .time-remaining {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1976d2;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            margin-right: 5px;
+        }
+
+        .badge-single {
+            background: #9c27b0;
+        }
+
+        .badge-repeat {
+            background: #2196f3;
+        }
+
+        .badge-blocking {
+            background: #ff9800;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .time-input-group input {
+            width: 60px;
+        }
+
+        .time-input-group span {
+            color: #666;
+            font-size: 12px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 Alarm Sequence Manager</h1>
+            <p>Create and manage your alarm sequences with auto-dismiss and patterns</p>
+        </div>
+
+        <div class="running-sequences">
+            <h2>🏃‍♂️ Running Sequences</h2>
+            <div id="runningSequences">
+                <p style="color: #666; font-style: italic;">No sequences running</p>
+            </div>
+            
+            <div id="activeAlarmsSection" style="display: none;">
+                <h3 style="margin-top: 20px; color: #667eea;">🔔 Active Alarms</h3>
+                <div style="margin-bottom: 10px;">
+                    <button class="btn btn-warning btn-small" onclick="dismissAllAlarms()" style="margin-right: 10px;">Dismiss All</button>
+                    <button class="btn btn-info btn-small" onclick="dismissCompletedAlarms()">Dismiss Completed</button>
+                </div>
+                <div id="activeAlarms" class="active-alarms-container"></div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="card">
+                <h2>📝 Create New Sequence</h2>
+                <div class="form-group">
+                    <label for="sequenceName">Sequence Name</label>
+                    <input type="text" id="sequenceName" placeholder="e.g., Workday, Workout">
+                </div>
+
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('single')">Single Event</div>
+                    <div class="tab" onclick="switchTab('repeating')">Repeating</div>
+                    <div class="tab" onclick="switchTab('pattern')">Pattern</div>
+                </div>
+
+                <div id="single-tab" class="tab-content active">
+                    <div class="form-group">
+                        <label for="singleAlarmName">Alarm Name</label>
+                        <input type="text" id="singleAlarmName" placeholder="e.g., Lunch, Snack">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Trigger After</label>
+                            <div class="time-input-group">
+                                <input type="number" id="singleTriggerHours" min="0" value="0">
+                                <span>h</span>
+                                <input type="number" id="singleTriggerMinutes" min="0" max="59" value="0">
+                                <span>m</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Duration</label>
+                            <div class="time-input-group">
+                                <input type="number" id="singleDurationMinutes" min="0" value="1">
+                                <span>m</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="singleAlarmSound">Sound</label>
+                            <select id="singleAlarmSound">
+                                <option value="beep">Beep</option>
+                                <option value="chime">Chime</option>
+                                <option value="bell">Bell</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="singleAutoDismiss">
+                                <label for="singleAutoDismiss">Auto-dismiss</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn" onclick="addSingleAlarm()">Add Single Event</button>
+                </div>
+
+                <div id="repeating-tab" class="tab-content">
+                    <div class="form-group">
+                        <label for="repeatAlarmName">Alarm Name</label>
+                        <input type="text" id="repeatAlarmName" placeholder="e.g., Stand up, Hydrate">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Interval</label>
+                            <div class="time-input-group">
+                                <input type="number" id="repeatIntervalMinutes" min="0" value="30">
+                                <span>m</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Duration</label>
+                            <div class="time-input-group">
+                                <input type="number" id="repeatDurationMinutes" min="0" value="2">
+                                <span>m</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="repeatAlarmSound">Sound</label>
+                            <select id="repeatAlarmSound">
+                                <option value="beep">Beep</option>
+                                <option value="chime">Chime</option>
+                                <option value="bell">Bell</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="repeatAutoDismiss">
+                                <label for="repeatAutoDismiss">Auto-dismiss</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn" onclick="addRepeatingAlarm()">Add Repeating Alarm</button>
+                </div>
+
+                <div id="pattern-tab" class="tab-content">
+                    <div class="form-group">
+                        <label for="patternStepName">Step Name</label>
+                        <input type="text" id="patternStepName" placeholder="e.g., Exercise 1, Rest">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Duration</label>
+                            <div class="time-input-group">
+                                <input type="number" id="patternStepDurationMinutes" min="0" value="1">
+                                <span>m</span>
+                                <input type="number" id="patternStepDurationSeconds" min="0" max="59" value="0">
+                                <span>s</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="patternStepAutoDismiss" checked>
+                                <label for="patternStepAutoDismiss">Auto-dismiss</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn" onclick="addPatternStep()">Add Step</button>
+                    
+                    <div id="patternSteps" style="margin-top: 15px;"></div>
+                    
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="patternRepeats">Repeat Pattern</label>
+                        <input type="number" id="patternRepeats" min="1" value="1">
+                    </div>
+                    
+                    <button class="btn" onclick="addPatternToSequence()">Add Pattern to Sequence</button>
+                </div>
+                
+                <div id="currentSequenceAlarms" style="margin-top: 20px;"></div>
+                
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-success" onclick="saveSequence()">Save Sequence</button>
+                    <button class="btn btn-warning" onclick="clearCurrentSequence()">Clear</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📚 Saved Sequences</h2>
+                <div id="savedSequences"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentSequence = [];
+        let savedSequences = [];
+        let runningSequences = [];
+        let currentPatternSteps = [];
+        let editingSequenceId = null;
+        let activeAlarmModals = [];
+        let alarmCountdowns = {};
+
+        // Sound generation
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(frequency, duration) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        const sounds = {
+            beep: () => playTone(800, 0.2),
+            chime: () => { playTone(523, 0.2); setTimeout(() => playTone(659, 0.2), 200); },
+            bell: () => { playTone(800, 0.1); setTimeout(() => playTone(800, 0.1), 150); }
+        };
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        // Time utilities
+        function timeToMs(hours = 0, minutes = 0, seconds = 0) {
+            return (hours * 3600 + minutes * 60 + seconds) * 1000;
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${seconds}s`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+
+        // Add single alarm
+        function addSingleAlarm() {
+            const name = document.getElementById('singleAlarmName').value;
+            const triggerHours = parseInt(document.getElementById('singleTriggerHours').value) || 0;
+            const triggerMinutes = parseInt(document.getElementById('singleTriggerMinutes').value) || 0;
+            const durationMinutes = parseInt(document.getElementById('singleDurationMinutes').value) || 0;
+            const sound = document.getElementById('singleAlarmSound').value;
+            const autoDismiss = document.getElementById('singleAutoDismiss').checked;
+
+            if (!name) {
+                alert('Please enter an alarm name');
+                return;
+            }
+
+            const alarm = {
+                id: Date.now(),
+                type: 'single',
+                name,
+                triggerTime: timeToMs(triggerHours, triggerMinutes, 0),
+                duration: timeToMs(0, durationMinutes, 0),
+                sound,
+                autoDismiss
+            };
+
+            currentSequence.push(alarm);
+            renderCurrentSequence();
+            document.getElementById('singleAlarmName').value = '';
+        }
+
+        // Add repeating alarm
+        function addRepeatingAlarm() {
+            const name = document.getElementById('repeatAlarmName').value;
+            const intervalMinutes = parseInt(document.getElementById('repeatIntervalMinutes').value) || 0;
+            const durationMinutes = parseInt(document.getElementById('repeatDurationMinutes').value) || 0;
+            const sound = document.getElementById('repeatAlarmSound').value;
+            const autoDismiss = document.getElementById('repeatAutoDismiss').checked;
+
+            if (!name) {
+                alert('Please enter an alarm name');
+                return;
+            }
+
+            const alarm = {
+                id: Date.now(),
+                type: 'repeating',
+                name,
+                interval: timeToMs(0, intervalMinutes, 0),
+                duration: timeToMs(0, durationMinutes, 0),
+                sound,
+                autoDismiss
+            };
+
+            currentSequence.push(alarm);
+            renderCurrentSequence();
+            document.getElementById('repeatAlarmName').value = '';
+        }
+
+        // Pattern functions
+        function addPatternStep() {
+            const name = document.getElementById('patternStepName').value;
+            const durationMinutes = parseInt(document.getElementById('patternStepDurationMinutes').value) || 0;
+            const durationSeconds = parseInt(document.getElementById('patternStepDurationSeconds').value) || 0;
+            const autoDismiss = document.getElementById('patternStepAutoDismiss').checked;
+
+            if (!name) {
+                alert('Please enter a step name');
+                return;
+            }
+
+            const step = {
+                id: Date.now(),
+                name,
+                duration: timeToMs(0, durationMinutes, durationSeconds),
+                autoDismiss
+            };
+
+            currentPatternSteps.push(step);
+            renderPatternSteps();
+            document.getElementById('patternStepName').value = '';
+        }
+
+        function renderPatternSteps() {
+            const container = document.getElementById('patternSteps');
+            container.innerHTML = '';
+
+            if (currentPatternSteps.length === 0) {
+                container.innerHTML = '<p style="color: #666; font-style: italic;">No pattern steps added</p>';
+                return;
+            }
+
+            currentPatternSteps.forEach((step, index) => {
+                const div = document.createElement('div');
+                div.className = 'alarm-item';
+                div.innerHTML = `
+                    <div class="alarm-item-header">
+                        <span>${index + 1}. ${step.name}</span>
+                        <button class="btn btn-danger btn-small" onclick="removePatternStep(${index})">Remove</button>
+                    </div>
+                    <div class="alarm-item-details">
+                        Duration: ${formatTime(step.duration)}${step.autoDismiss ? ' | Auto-dismiss' : ''}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function removePatternStep(index) {
+            currentPatternSteps.splice(index, 1);
+            renderPatternSteps();
+        }
+
+        function addPatternToSequence() {
+            if (currentPatternSteps.length === 0) {
+                alert('Please add at least one pattern step');
+                return;
+            }
+
+            const repeats = parseInt(document.getElementById('patternRepeats').value) || 1;
+
+            const pattern = {
+                id: Date.now(),
+                type: 'pattern',
+                name: `Pattern (${currentPatternSteps.length} steps)`,
+                steps: [...currentPatternSteps],
+                repeats
+            };
+
+            currentSequence.push(pattern);
+            renderCurrentSequence();
+            
+            currentPatternSteps = [];
+            renderPatternSteps();
+            document.getElementById('patternRepeats').value = '1';
+        }
+
+        // Render current sequence
+        function renderCurrentSequence() {
+            const container = document.getElementById('currentSequenceAlarms');
+            container.innerHTML = '';
+
+            if (currentSequence.length === 0) {
+                container.innerHTML = '<p style="color: #666; font-style: italic;">No alarms added yet</p>';
+                return;
+            }
+
+            currentSequence.forEach((alarm, index) => {
+                const div = document.createElement('div');
+                div.className = 'alarm-item';
+                
+                let details = '';
+                let badges = '';
+                
+                if (alarm.type === 'single') {
+                    details = `Trigger: ${formatTime(alarm.triggerTime)} | Duration: ${formatTime(alarm.duration)}`;
+                    badges += '<span class="badge badge-single">SINGLE</span>';
+                } else if (alarm.type === 'repeating') {
+                    details = `Every ${formatTime(alarm.interval)} for ${formatTime(alarm.duration)}`;
+                    badges += '<span class="badge badge-repeat">REPEAT</span>';
+                } else if (alarm.type === 'pattern') {
+                    details = `${alarm.steps.length} steps, repeat ${alarm.repeats}x`;
+                    badges += '<span class="badge badge-repeat">PATTERN</span>';
+                }
+                
+                if (alarm.autoDismiss) {
+                    badges += '<span class="badge" style="background: #4caf50;">AUTO-DISMISS</span>';
+                }
+                
+                div.innerHTML = `
+                    <div class="alarm-item-header">
+                        <span>⋮⋮ ${alarm.name}</span>
+                        <div>
+                            <button class="btn btn-info btn-small" onclick="moveAlarmUp(${index})" ${index === 0 ? 'disabled' : ''}>↑</button>
+                            <button class="btn btn-info btn-small" onclick="moveAlarmDown(${index})" ${index === currentSequence.length - 1 ? 'disabled' : ''}>↓</button>
+                            <button class="btn btn-danger btn-small" onclick="removeAlarmFromSequence(${index})">Remove</button>
+                        </div>
+                    </div>
+                    <div class="alarm-item-details">${details}</div>
+                    <div style="margin-top: 5px;">${badges}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function moveAlarmUp(index) {
+            if (index > 0) {
+                [currentSequence[index], currentSequence[index - 1]] = [currentSequence[index - 1], currentSequence[index]];
+                renderCurrentSequence();
+            }
+        }
+
+        function moveAlarmDown(index) {
+            if (index < currentSequence.length - 1) {
+                [currentSequence[index], currentSequence[index + 1]] = [currentSequence[index + 1], currentSequence[index]];
+                renderCurrentSequence();
+            }
+        }
+
+        function removeAlarmFromSequence(index) {
+            currentSequence.splice(index, 1);
+            renderCurrentSequence();
+        }
+
+        function clearCurrentSequence() {
+            currentSequence = [];
+            currentPatternSteps = [];
+            renderCurrentSequence();
+            renderPatternSteps();
+        }
+
+        // Save and load
+        function saveSequence() {
+            const name = document.getElementById('sequenceName').value;
+            
+            if (!name) {
+                alert('Please enter a sequence name');
+                return;
+            }
+
+            if (currentSequence.length === 0) {
+                alert('Please add at least one alarm to the sequence');
+                return;
+            }
+
+            const sequence = {
+                id: editingSequenceId || Date.now(),
+                name,
+                alarms: [...currentSequence]
+            };
+
+            if (editingSequenceId) {
+                const index = savedSequences.findIndex(s => s.id === editingSequenceId);
+                if (index !== -1) {
+                    savedSequences[index] = sequence;
+                }
+                editingSequenceId = null;
+            } else {
+                savedSequences.push(sequence);
+            }
+
+            saveData();
+            renderSavedSequences();
+            
+            document.getElementById('sequenceName').value = '';
+            clearCurrentSequence();
+        }
+
+        function saveData() {
+            localStorage.setItem('alarmSequences', JSON.stringify(savedSequences));
+        }
+
+        function loadSavedData() {
+            const saved = JSON.parse(localStorage.getItem('alarmSequences') || '[]');
+            savedSequences = saved;
+            renderSavedSequences();
+        }
+
+        function renderSavedSequences() {
+            const container = document.getElementById('savedSequences');
+            container.innerHTML = '';
+
+            if (savedSequences.length === 0) {
+                container.innerHTML = '<p style="color: #666; font-style: italic;">No saved sequences</p>';
+                return;
+            }
+
+            savedSequences.forEach(sequence => {
+                const div = document.createElement('div');
+                div.className = 'sequence-item';
+                
+                div.innerHTML = `
+                    <div class="sequence-item-info">
+                        <div class="sequence-item-name">${sequence.name}</div>
+                        <div class="sequence-item-details">${sequence.alarms.length} alarm(s)</div>
+                    </div>
+                    <div>
+                        <button class="btn btn-success" onclick="startSequence(${sequence.id})">Start</button>
+                        <button class="btn btn-info" onclick="editSequence(${sequence.id})">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteSequence(${sequence.id})">Delete</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function editSequence(sequenceId) {
+            const sequence = savedSequences.find(s => s.id === sequenceId);
+            if (!sequence) return;
+
+            editingSequenceId = sequenceId;
+            
+            document.getElementById('sequenceName').value = sequence.name;
+            currentSequence = [...sequence.alarms];
+            renderCurrentSequence();
+            
+            document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function deleteSequence(sequenceId) {
+            console.log('Delete button clicked for sequence ID:', sequenceId);
+            
+            // Simple confirmation that should work in all browsers
+            const sequenceName = savedSequences.find(s => s.id === sequenceId)?.name || 'Unknown';
+            const userConfirmed = window.confirm(`Delete "${sequenceName}"?`);
+            
+            if (!userConfirmed) {
+                console.log('User cancelled deletion');
+                return;
+            }
+            
+            console.log('User confirmed deletion');
+            
+            const beforeCount = savedSequences.length;
+            savedSequences = savedSequences.filter(s => s.id !== sequenceId);
+            const afterCount = savedSequences.length;
+            
+            console.log(`Sequences before: ${beforeCount}, after: ${afterCount}`);
+            
+            if (beforeCount === afterCount) {
+                console.error('ERROR: No sequence was deleted!');
+                alert('Error: Could not delete sequence. Please try again.');
+                return;
+            }
+            
+            console.log('Sequence deleted successfully');
+            saveData();
+            renderSavedSequences();
+            
+            // Stop if running
+            const runningIndex = runningSequences.findIndex(rs => rs.sequenceId === sequenceId);
+            if (runningIndex !== -1) {
+                console.log('Also stopping running sequence');
+                stopSequence(sequenceId);
+            }
+        }
+
+        // Start and run sequences
+        function startSequence(sequenceId) {
+            const sequence = savedSequences.find(s => s.id === sequenceId);
+            if (!sequence) return;
+
+            if (runningSequences.find(rs => rs.sequenceId === sequenceId)) {
+                alert('This sequence is already running!');
+                return;
+            }
+
+            const runningSequence = {
+                sequenceId,
+                name: sequence.name,
+                alarms: [],
+                startTime: Date.now(),
+                isActive: true
+            };
+
+            // Process alarms
+            sequence.alarms.forEach(alarm => {
+                if (alarm.type === 'single') {
+                    runningSequence.alarms.push({
+                        ...alarm,
+                        nextTime: runningSequence.startTime + alarm.triggerTime,
+                        isActive: false,
+                        hasTriggered: false
+                    });
+                } else if (alarm.type === 'repeating') {
+                    runningSequence.alarms.push({
+                        ...alarm,
+                        nextTime: runningSequence.startTime + alarm.interval,
+                        isActive: false
+                    });
+                } else if (alarm.type === 'pattern') {
+                    runningSequence.alarms.push({
+                        ...alarm,
+                        type: 'pattern-controller',
+                        nextTime: runningSequence.startTime,
+                        isActive: false,
+                        currentRepeat: 0,
+                        currentStep: 0,
+                        stepEndTime: 0,
+                        transitioning: false
+                    });
+                }
+            });
+
+            runningSequences.push(runningSequence);
+            scheduleAlarmsForSequence(runningSequence);
+            renderRunningSequences();
+        }
+
+        function scheduleAlarmsForSequence(runningSequence) {
+            const checkAlarms = () => {
+                const now = Date.now();
+                
+                if (!runningSequence.isActive) {
+                    return;
+                }
+                
+                runningSequence.alarms.forEach(alarm => {
+                    if (alarm.type === 'pattern-controller') {
+                        handlePatternController(runningSequence, alarm, now);
+                    } else if (alarm.nextTime <= now && !alarm.isActive) {
+                        triggerAlarm(runningSequence, alarm);
+                        
+                        if (alarm.type === 'repeating') {
+                            alarm.nextTime = now + alarm.interval;
+                        } else if (alarm.type === 'single') {
+                            alarm.hasTriggered = true;
+                        }
+                    }
+                });
+                
+                if (runningSequence.isActive) {
+                    setTimeout(checkAlarms, 1000);
+                }
+            };
+            
+            checkAlarms();
+        }
+
+        function handlePatternController(runningSequence, patternAlarm, now) {
+            if (patternAlarm.currentStep === 0 && patternAlarm.stepEndTime === 0 && now >= patternAlarm.nextTime) {
+                startNextPatternStep(runningSequence, patternAlarm, now);
+            } else if (patternAlarm.stepEndTime > 0 && now >= patternAlarm.stepEndTime && !patternAlarm.transitioning) {
+                patternAlarm.transitioning = true;
+                
+                patternAlarm.currentStep++;
+                
+                if (patternAlarm.currentStep >= patternAlarm.steps.length) {
+                    patternAlarm.currentRepeat++;
+                    
+                    if (patternAlarm.currentRepeat >= patternAlarm.repeats) {
+                        patternAlarm.isActive = false;
+                        patternAlarm.transitioning = false;
+                        return;
+                    } else {
+                        patternAlarm.currentStep = 0;
+                    }
+                }
+                
+                startNextPatternStep(runningSequence, patternAlarm, now);
+                patternAlarm.transitioning = false;
+            }
+        }
+
+        function startNextPatternStep(runningSequence, patternAlarm, now) {
+            const currentStep = patternAlarm.steps[patternAlarm.currentStep];
+            
+            patternAlarm.stepEndTime = now + currentStep.duration;
+            
+            const stepAlarm = {
+                id: `${patternAlarm.id}_${patternAlarm.currentRepeat}_${patternAlarm.currentStep}_${now}`,
+                type: 'pattern-step',
+                name: `${currentStep.name} (Step ${patternAlarm.currentStep + 1}/${patternAlarm.steps.length}, Repeat ${patternAlarm.currentRepeat + 1}/${patternAlarm.repeats})`,
+                duration: currentStep.duration,
+                autoDismiss: currentStep.autoDismiss,
+                isActive: true,
+                patternInfo: {
+                    currentStep: patternAlarm.currentStep + 1,
+                    totalSteps: patternAlarm.steps.length,
+                    currentRepeat: patternAlarm.currentRepeat + 1,
+                    totalRepeats: patternAlarm.repeats
+                }
+            };
+            
+            triggerAlarm(runningSequence, stepAlarm);
+            
+            setTimeout(() => {
+                stepAlarm.isActive = false;
+                if (stepAlarm.autoDismiss) {
+                    dismissSpecificAlarm(stepAlarm.id);
+                }
+                renderRunningSequences();
+            }, currentStep.duration);
+        }
+
+        function triggerAlarm(runningSequence, alarm) {
+            const alarmId = alarm.id || `${alarm.type}_${Date.now()}`;
+            
+            if (Notification.permission === 'granted') {
+                new Notification(`${runningSequence.name} - ${alarm.name}`, {
+                    body: `Duration: ${formatTime(alarm.duration)}`,
+                    icon: '🔔'
+                });
+            }
+
+            sounds[alarm.sound || 'beep']();
+            
+            alarm.isActive = true;
+            
+            showAlarmModal(runningSequence.name, alarm, alarmId);
+            startAlarmCountdown(alarmId, alarm.duration);
+            
+            setTimeout(() => {
+                alarm.isActive = false;
+                stopAlarmCountdown(alarmId);
+                
+                if (alarm.autoDismiss) {
+                    dismissSpecificAlarm(alarmId);
+                }
+                
+                renderRunningSequences();
+            }, alarm.duration);
+            
+            renderRunningSequences();
+        }
+
+        function showAlarmModal(sequenceName, alarm, alarmId) {
+            activeAlarmModals.unshift({
+                id: alarmId,
+                sequenceName,
+                alarm,
+                isActive: true
+            });
+            
+            renderActiveAlarms();
+        }
+
+        function startAlarmCountdown(alarmId, duration) {
+            const startTime = Date.now();
+            const endTime = startTime + duration;
+            
+            alarmCountdowns[alarmId] = setInterval(() => {
+                const remaining = Math.max(0, endTime - Date.now());
+                const topCountdownElement = document.getElementById(`top-countdown-${alarmId}`);
+                
+                if (topCountdownElement) {
+                    if (remaining <= 0) {
+                        const alarm = activeAlarmModals.find(a => a.id === alarmId);
+                        if (alarm) {
+                            alarm.isFinished = true; // Mark alarm as finished
+                            if (!alarm.alarm.autoDismiss) {
+                                topCountdownElement.textContent = 'FINISHED';
+                                topCountdownElement.style.color = '#4caf50';
+                                topCountdownElement.style.fontWeight = 'bold';
+                            } else {
+                                topCountdownElement.textContent = '0s';
+                            }
+                        }
+                    } else {
+                        topCountdownElement.textContent = formatTime(remaining);
+                        topCountdownElement.style.color = '#1976d2';
+                    }
+                }
+                
+                if (remaining <= 0) {
+                    stopAlarmCountdown(alarmId);
+                }
+            }, 100);
+        }
+
+        function stopAlarmCountdown(alarmId) {
+            if (alarmCountdowns[alarmId]) {
+                clearInterval(alarmCountdowns[alarmId]);
+                delete alarmCountdowns[alarmId];
+            }
+        }
+
+        function renderActiveAlarms() {
+            const container = document.getElementById('activeAlarms');
+            const section = document.getElementById('activeAlarmsSection');
+            
+            const activeAlarms = activeAlarmModals.filter(a => a.isActive);
+            
+            if (activeAlarms.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            section.style.display = 'block';
+            container.innerHTML = '';
+            
+            activeAlarms.forEach(activeAlarm => {
+                const card = document.createElement('div');
+                card.className = 'active-alarm-card';
+                
+                let progressInfo = '';
+                if (activeAlarm.alarm.patternInfo) {
+                    progressInfo = `<div class="active-alarm-progress">Step ${activeAlarm.alarm.patternInfo.currentStep}/${activeAlarm.alarm.patternInfo.totalSteps} • Repeat ${activeAlarm.alarm.patternInfo.currentRepeat}/${activeAlarm.alarm.patternInfo.totalRepeats}</div>`;
+                }
+                
+                const autoDismissText = activeAlarm.alarm.autoDismiss ? ' (Auto-dismiss)' : '';
+                
+                card.innerHTML = `
+                    <div class="active-alarm-title">${activeAlarm.sequenceName}</div>
+                    <div class="active-alarm-description">${activeAlarm.alarm.name}${autoDismissText}</div>
+                    ${progressInfo}
+                    <div class="active-alarm-countdown" id="top-countdown-${activeAlarm.id}">${formatTime(activeAlarm.alarm.duration)}</div>
+                    ${!activeAlarm.alarm.autoDismiss ? `<button class="btn" style="margin-top: 10px;" onclick="dismissSpecificAlarm('${activeAlarm.id}')">Dismiss</button>` : ''}
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function dismissSpecificAlarm(alarmId) {
+            const alarmIndex = activeAlarmModals.findIndex(a => a.id === alarmId);
+            if (alarmIndex !== -1) {
+                stopAlarmCountdown(alarmId);
+                activeAlarmModals.splice(alarmIndex, 1);
+            }
+            renderActiveAlarms();
+        }
+
+        function dismissAllAlarms() {
+            activeAlarmModals.forEach(alarm => {
+                stopAlarmCountdown(alarm.id);
+            });
+            activeAlarmModals = [];
+            renderActiveAlarms();
+        }
+
+        function dismissCompletedAlarms() {
+            console.log('Dismiss completed called');
+            console.log('Active alarms before:', activeAlarmModals.length);
+            
+            // Remove alarms that are marked as finished
+            const completedCount = activeAlarmModals.filter(alarm => alarm.isFinished).length;
+            console.log('Found', completedCount, 'completed alarms');
+            
+            activeAlarmModals = activeAlarmModals.filter(alarm => {
+                if (alarm.isFinished) {
+                    console.log(`Removing finished alarm: ${alarm.alarm.name}`);
+                    stopAlarmCountdown(alarm.id);
+                    return false;
+                }
+                return true;
+            });
+            
+            console.log('Active alarms after:', activeAlarmModals.length);
+            renderActiveAlarms();
+        }
+
+        function stopSequence(sequenceId) {
+            const sequenceIndex = runningSequences.findIndex(rs => rs.sequenceId === sequenceId);
+            if (sequenceIndex !== -1) {
+                const sequence = runningSequences[sequenceIndex];
+                sequence.isActive = false;
+                
+                sequence.alarms.forEach(alarm => {
+                    alarm.isActive = false;
+                    if (alarm.id) {
+                        stopAlarmCountdown(alarm.id);
+                    }
+                });
+                
+                runningSequences.splice(sequenceIndex, 1);
+                renderRunningSequences();
+            }
+        }
+
+        function renderRunningSequences() {
+            const container = document.getElementById('runningSequences');
+            
+            if (runningSequences.length === 0) {
+                container.innerHTML = '<p style="color: #666; font-style: italic;">No sequences running</p>';
+                return;
+            }
+
+            let html = '';
+            
+            runningSequences.forEach(sequence => {
+                const now = Date.now();
+                const activeAlarms = sequence.alarms.filter(a => a.isActive);
+                const nextAlarm = sequence.alarms.filter(a => !a.isActive && (a.type === 'repeating' || (a.type === 'single' && !a.hasTriggered)))
+                    .reduce((next, alarm) => !next || alarm.nextTime < next.nextTime ? alarm : next, null);
+                
+                let timeDisplay = '';
+                if (nextAlarm) {
+                    const timeUntilNext = Math.max(0, nextAlarm.nextTime - now);
+                    timeDisplay = `Next: ${nextAlarm.name} in ${formatTime(timeUntilNext)}`;
+                } else {
+                    timeDisplay = 'No upcoming alarms';
+                }
+                
+                html += `
+                    <div class="running-sequence">
+                        <div class="running-sequence-header">${sequence.name}</div>
+                        <div class="time-remaining">${timeDisplay}</div>
+                        ${activeAlarms.length > 0 ? `<div style="color: #ff6b6b; font-weight: 600; margin-top: 5px;">🔔 Active: ${activeAlarms.map(a => a.name || 'Pattern Step').join(', ')}</div>` : ''}
+                        <button class="btn btn-danger" style="margin-top: 10px;" onclick="stopSequence(${sequence.sequenceId})">Stop</button>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateRunningSequences() {
+            if (runningSequences.length > 0) {
+                renderRunningSequences();
+            }
+        }
+
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function init() {
+            loadSavedData();
+            requestNotificationPermission();
+            
+            setInterval(updateRunningSequences, 1000);
+            
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    dismissAllAlarms();
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
