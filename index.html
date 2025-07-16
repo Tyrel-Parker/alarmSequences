@@ -409,6 +409,8 @@
                             <div class="time-input-group">
                                 <input type="number" id="singleDurationMinutes" min="0" value="1">
                                 <span>m</span>
+                                <input type="number" id="singleDurationSeconds" min="0" max="59" value="0">
+                                <span>s</span>
                             </div>
                         </div>
                     </div>
@@ -445,6 +447,8 @@
                             <div class="time-input-group">
                                 <input type="number" id="repeatIntervalMinutes" min="0" value="30">
                                 <span>m</span>
+                                <input type="number" id="repeatIntervalSeconds" min="0" max="59" value="0">
+                                <span>s</span>
                             </div>
                         </div>
                         <div class="form-group">
@@ -452,6 +456,8 @@
                             <div class="time-input-group">
                                 <input type="number" id="repeatDurationMinutes" min="0" value="2">
                                 <span>m</span>
+                                <input type="number" id="repeatDurationSeconds" min="0" max="59" value="0">
+                                <span>s</span>
                             </div>
                         </div>
                     </div>
@@ -514,14 +520,41 @@
                 
                 <div id="currentSequenceAlarms" style="margin-top: 20px;"></div>
                 
+                <div id="editingIndicator" style="display: none; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 10px; margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>Editing:</strong> <span id="editingSequenceName"></span>
+                            <div style="font-size: 12px; color: #666;">Changes will update the existing sequence</div>
+                        </div>
+                        <button class="btn btn-warning btn-small" onclick="cancelEdit()">Cancel Edit</button>
+                    </div>
+                </div>
+                
                 <div style="margin-top: 15px;">
-                    <button class="btn btn-success" onclick="saveSequence()">Save Sequence</button>
+                    <button class="btn btn-success" onclick="saveSequence()">
+                        <span id="saveButtonText">Save Sequence</span>
+                    </button>
                     <button class="btn btn-warning" onclick="clearCurrentSequence()">Clear</button>
                 </div>
             </div>
 
             <div class="card">
                 <h2>📚 Saved Sequences</h2>
+                
+                <!-- Delete confirmation area -->
+                <div id="deleteConfirmation" style="display: none; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>Delete sequence?</strong>
+                            <div id="deleteSequenceName" style="color: #666; font-size: 14px;"></div>
+                        </div>
+                        <div>
+                            <button class="btn btn-danger btn-small" onclick="confirmDelete()">Delete</button>
+                            <button class="btn btn-small" onclick="cancelDelete()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="savedSequences"></div>
             </div>
         </div>
@@ -536,6 +569,7 @@
         let editingSequenceId = null;
         let activeAlarmModals = [];
         let alarmCountdowns = {};
+        let sequenceToDelete = null;
 
         // Sound generation
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -596,6 +630,7 @@
             const triggerHours = parseInt(document.getElementById('singleTriggerHours').value) || 0;
             const triggerMinutes = parseInt(document.getElementById('singleTriggerMinutes').value) || 0;
             const durationMinutes = parseInt(document.getElementById('singleDurationMinutes').value) || 0;
+            const durationSeconds = parseInt(document.getElementById('singleDurationSeconds').value) || 0;
             const sound = document.getElementById('singleAlarmSound').value;
             const autoDismiss = document.getElementById('singleAutoDismiss').checked;
 
@@ -609,7 +644,7 @@
                 type: 'single',
                 name,
                 triggerTime: timeToMs(triggerHours, triggerMinutes, 0),
-                duration: timeToMs(0, durationMinutes, 0),
+                duration: timeToMs(0, durationMinutes, durationSeconds),
                 sound,
                 autoDismiss
             };
@@ -623,7 +658,9 @@
         function addRepeatingAlarm() {
             const name = document.getElementById('repeatAlarmName').value;
             const intervalMinutes = parseInt(document.getElementById('repeatIntervalMinutes').value) || 0;
+            const intervalSeconds = parseInt(document.getElementById('repeatIntervalSeconds').value) || 0;
             const durationMinutes = parseInt(document.getElementById('repeatDurationMinutes').value) || 0;
+            const durationSeconds = parseInt(document.getElementById('repeatDurationSeconds').value) || 0;
             const sound = document.getElementById('repeatAlarmSound').value;
             const autoDismiss = document.getElementById('repeatAutoDismiss').checked;
 
@@ -636,8 +673,8 @@
                 id: Date.now(),
                 type: 'repeating',
                 name,
-                interval: timeToMs(0, intervalMinutes, 0),
-                duration: timeToMs(0, durationMinutes, 0),
+                interval: timeToMs(0, intervalMinutes, intervalSeconds),
+                duration: timeToMs(0, durationMinutes, durationSeconds),
                 sound,
                 autoDismiss
             };
@@ -685,8 +722,13 @@
                 div.className = 'alarm-item';
                 div.innerHTML = `
                     <div class="alarm-item-header">
-                        <span>${index + 1}. ${step.name}</span>
-                        <button class="btn btn-danger btn-small" onclick="removePatternStep(${index})">Remove</button>
+                        <span>⋮⋮ ${index + 1}. ${step.name}</span>
+                        <div>
+                            <button class="btn btn-info btn-small" onclick="movePatternStepUp(${index})" ${index === 0 ? 'disabled' : ''}>↑</button>
+                            <button class="btn btn-info btn-small" onclick="movePatternStepDown(${index})" ${index === currentPatternSteps.length - 1 ? 'disabled' : ''}>↓</button>
+                            <button class="btn btn-info btn-small" onclick="editPatternStep(${index})">Edit</button>
+                            <button class="btn btn-danger btn-small" onclick="removePatternStep(${index})">Remove</button>
+                        </div>
                     </div>
                     <div class="alarm-item-details">
                         Duration: ${formatTime(step.duration)}${step.autoDismiss ? ' | Auto-dismiss' : ''}
@@ -697,6 +739,37 @@
         }
 
         function removePatternStep(index) {
+            currentPatternSteps.splice(index, 1);
+            renderPatternSteps();
+        }
+
+        // Move pattern steps up/down
+        function movePatternStepUp(index) {
+            if (index > 0) {
+                [currentPatternSteps[index], currentPatternSteps[index - 1]] = [currentPatternSteps[index - 1], currentPatternSteps[index]];
+                renderPatternSteps();
+            }
+        }
+
+        function movePatternStepDown(index) {
+            if (index < currentPatternSteps.length - 1) {
+                [currentPatternSteps[index], currentPatternSteps[index + 1]] = [currentPatternSteps[index + 1], currentPatternSteps[index]];
+                renderPatternSteps();
+            }
+        }
+
+        // Edit pattern step function
+        function editPatternStep(index) {
+            const step = currentPatternSteps[index];
+            
+            // Populate the form
+            document.getElementById('patternStepName').value = step.name;
+            const time = msToTime(step.duration);
+            document.getElementById('patternStepDurationMinutes').value = time.minutes;
+            document.getElementById('patternStepDurationSeconds').value = time.seconds;
+            document.getElementById('patternStepAutoDismiss').checked = step.autoDismiss;
+            
+            // Remove the step so it doesn't duplicate when re-added
             currentPatternSteps.splice(index, 1);
             renderPatternSteps();
         }
@@ -763,6 +836,7 @@
                         <div>
                             <button class="btn btn-info btn-small" onclick="moveAlarmUp(${index})" ${index === 0 ? 'disabled' : ''}>↑</button>
                             <button class="btn btn-info btn-small" onclick="moveAlarmDown(${index})" ${index === currentSequence.length - 1 ? 'disabled' : ''}>↓</button>
+                            <button class="btn btn-info btn-small" onclick="editAlarm(${index})">Edit</button>
                             <button class="btn btn-danger btn-small" onclick="removeAlarmFromSequence(${index})">Remove</button>
                         </div>
                     </div>
@@ -792,11 +866,66 @@
             renderCurrentSequence();
         }
 
+        // Edit alarm function
+        function editAlarm(index) {
+            const alarm = currentSequence[index];
+            
+            if (alarm.type === 'single') {
+                // Switch to single tab and populate
+                switchTab('single');
+                document.getElementById('singleAlarmName').value = alarm.name;
+                const triggerTime = msToTime(alarm.triggerTime);
+                document.getElementById('singleTriggerHours').value = triggerTime.hours;
+                document.getElementById('singleTriggerMinutes').value = triggerTime.minutes;
+                const duration = msToTime(alarm.duration);
+                document.getElementById('singleDurationMinutes').value = duration.minutes;
+                document.getElementById('singleDurationSeconds').value = duration.seconds;
+                document.getElementById('singleAlarmSound').value = alarm.sound;
+                document.getElementById('singleAutoDismiss').checked = alarm.autoDismiss;
+                
+            } else if (alarm.type === 'repeating') {
+                // Switch to repeating tab and populate
+                switchTab('repeating');
+                document.getElementById('repeatAlarmName').value = alarm.name;
+                const interval = msToTime(alarm.interval);
+                document.getElementById('repeatIntervalMinutes').value = interval.minutes;
+                document.getElementById('repeatIntervalSeconds').value = interval.seconds;
+                const duration = msToTime(alarm.duration);
+                document.getElementById('repeatDurationMinutes').value = duration.minutes;
+                document.getElementById('repeatDurationSeconds').value = duration.seconds;
+                document.getElementById('repeatAlarmSound').value = alarm.sound;
+                document.getElementById('repeatAutoDismiss').checked = alarm.autoDismiss;
+                
+            } else if (alarm.type === 'pattern') {
+                // Switch to pattern tab and load steps
+                switchTab('pattern');
+                currentPatternSteps = [...alarm.steps];
+                document.getElementById('patternRepeats').value = alarm.repeats;
+                renderPatternSteps();
+            }
+            
+            // Remove the alarm from sequence so it doesn't duplicate when re-added
+            currentSequence.splice(index, 1);
+            renderCurrentSequence();
+        }
+
+        // Helper function to convert milliseconds to time components
+        function msToTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return { hours, minutes, seconds };
+        }
+
         function clearCurrentSequence() {
             currentSequence = [];
             currentPatternSteps = [];
             renderCurrentSequence();
             renderPatternSteps();
+            
+            // If we're editing, don't clear the editing state - user might want to start over
+            // Only clear the form contents
         }
 
         // Save and load
@@ -820,12 +949,17 @@
             };
 
             if (editingSequenceId) {
+                console.log('Updating existing sequence:', name);
                 const index = savedSequences.findIndex(s => s.id === editingSequenceId);
                 if (index !== -1) {
                     savedSequences[index] = sequence;
                 }
+                // Reset editing state
                 editingSequenceId = null;
+                document.getElementById('editingIndicator').style.display = 'none';
+                document.getElementById('saveButtonText').textContent = 'Save Sequence';
             } else {
+                console.log('Creating new sequence:', name);
                 savedSequences.push(sequence);
             }
 
@@ -880,6 +1014,11 @@
 
             editingSequenceId = sequenceId;
             
+            // Show editing indicator
+            document.getElementById('editingSequenceName').textContent = sequence.name;
+            document.getElementById('editingIndicator').style.display = 'block';
+            document.getElementById('saveButtonText').textContent = 'Update Sequence';
+            
             document.getElementById('sequenceName').value = sequence.name;
             currentSequence = [...sequence.alarms];
             renderCurrentSequence();
@@ -887,22 +1026,50 @@
             document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
         }
 
+        function cancelEdit() {
+            // Restore the original sequence if it exists
+            if (editingSequenceId) {
+                const originalSequence = savedSequences.find(s => s.id === editingSequenceId);
+                if (originalSequence) {
+                    console.log('Cancelled edit, original sequence preserved:', originalSequence.name);
+                }
+            }
+            
+            // Reset editing state
+            editingSequenceId = null;
+            document.getElementById('editingIndicator').style.display = 'none';
+            document.getElementById('saveButtonText').textContent = 'Save Sequence';
+            
+            // Clear the form
+            document.getElementById('sequenceName').value = '';
+            clearCurrentSequence();
+            
+            console.log('Edit cancelled, ready for new sequence');
+        }
+
         function deleteSequence(sequenceId) {
             console.log('Delete button clicked for sequence ID:', sequenceId);
             
-            // Simple confirmation that should work in all browsers
-            const sequenceName = savedSequences.find(s => s.id === sequenceId)?.name || 'Unknown';
-            const userConfirmed = window.confirm(`Delete "${sequenceName}"?`);
+            // Find the sequence name for display
+            const sequence = savedSequences.find(s => s.id === sequenceId);
+            const sequenceName = sequence ? sequence.name : 'Unknown';
             
-            if (!userConfirmed) {
-                console.log('User cancelled deletion');
-                return;
-            }
+            // Store the ID and show inline confirmation
+            sequenceToDelete = sequenceId;
+            document.getElementById('deleteSequenceName').textContent = `"${sequenceName}" will be permanently deleted.`;
+            document.getElementById('deleteConfirmation').style.display = 'block';
             
-            console.log('User confirmed deletion');
+            // Scroll to make sure it's visible
+            document.getElementById('deleteConfirmation').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function confirmDelete() {
+            if (sequenceToDelete === null) return;
+            
+            console.log('User confirmed deletion of:', sequenceToDelete);
             
             const beforeCount = savedSequences.length;
-            savedSequences = savedSequences.filter(s => s.id !== sequenceId);
+            savedSequences = savedSequences.filter(s => s.id !== sequenceToDelete);
             const afterCount = savedSequences.length;
             
             console.log(`Sequences before: ${beforeCount}, after: ${afterCount}`);
@@ -910,6 +1077,7 @@
             if (beforeCount === afterCount) {
                 console.error('ERROR: No sequence was deleted!');
                 alert('Error: Could not delete sequence. Please try again.');
+                cancelDelete();
                 return;
             }
             
@@ -918,11 +1086,23 @@
             renderSavedSequences();
             
             // Stop if running
-            const runningIndex = runningSequences.findIndex(rs => rs.sequenceId === sequenceId);
+            const runningIndex = runningSequences.findIndex(rs => rs.sequenceId === sequenceToDelete);
             if (runningIndex !== -1) {
                 console.log('Also stopping running sequence');
-                stopSequence(sequenceId);
+                stopSequence(sequenceToDelete);
             }
+            
+            cancelDelete();
+        }
+
+        function cancelDelete() {
+            document.getElementById('deleteConfirmation').style.display = 'none';
+            sequenceToDelete = null;
+        }
+
+        function closeDeleteModal() {
+            // Keep this for compatibility but redirect to new function
+            cancelDelete();
         }
 
         // Start and run sequences
@@ -988,13 +1168,19 @@
                 runningSequence.alarms.forEach(alarm => {
                     if (alarm.type === 'pattern-controller') {
                         handlePatternController(runningSequence, alarm, now);
-                    } else if (alarm.nextTime <= now && !alarm.isActive) {
+                    } else if (alarm.nextTime <= now && !alarm.isActive && !alarm.hasTriggered) {
+                        // For single alarms, check if they haven't been triggered yet
+                        if (alarm.type === 'single' && alarm.hasTriggered) {
+                            return; // Skip if single alarm already triggered
+                        }
+                        
                         triggerAlarm(runningSequence, alarm);
                         
                         if (alarm.type === 'repeating') {
                             alarm.nextTime = now + alarm.interval;
                         } else if (alarm.type === 'single') {
                             alarm.hasTriggered = true;
+                            console.log('Single alarm triggered, marked as complete:', alarm.name);
                         }
                     }
                 });
@@ -1241,6 +1427,30 @@
         function renderRunningSequences() {
             const container = document.getElementById('runningSequences');
             
+            // Clean up finished sequences
+            runningSequences = runningSequences.filter(sequence => {
+                const hasActiveAlarms = sequence.alarms.some(a => a.isActive);
+                const hasUpcomingRepeatingAlarms = sequence.alarms.some(a => 
+                    a.type === 'repeating' && !a.isActive
+                );
+                const hasUpcomingSingleAlarms = sequence.alarms.some(a => 
+                    a.type === 'single' && !a.hasTriggered && !a.isActive
+                );
+                const hasUpcomingPatterns = sequence.alarms.some(a => 
+                    a.type === 'pattern-controller' && a.currentRepeat < a.repeats
+                );
+                
+                // Keep sequence if it has any active or upcoming alarms
+                const shouldKeep = hasActiveAlarms || hasUpcomingRepeatingAlarms || hasUpcomingSingleAlarms || hasUpcomingPatterns;
+                
+                if (!shouldKeep) {
+                    sequence.isActive = false;
+                    console.log('Removing completed sequence:', sequence.name);
+                }
+                
+                return shouldKeep;
+            });
+            
             if (runningSequences.length === 0) {
                 container.innerHTML = '<p style="color: #666; font-style: italic;">No sequences running</p>';
                 return;
@@ -1251,15 +1461,23 @@
             runningSequences.forEach(sequence => {
                 const now = Date.now();
                 const activeAlarms = sequence.alarms.filter(a => a.isActive);
-                const nextAlarm = sequence.alarms.filter(a => !a.isActive && (a.type === 'repeating' || (a.type === 'single' && !a.hasTriggered)))
-                    .reduce((next, alarm) => !next || alarm.nextTime < next.nextTime ? alarm : next, null);
+                const nextAlarm = sequence.alarms.filter(a => 
+                    !a.isActive && 
+                    ((a.type === 'repeating') || (a.type === 'single' && !a.hasTriggered))
+                ).reduce((next, alarm) => !next || alarm.nextTime < next.nextTime ? alarm : next, null);
                 
                 let timeDisplay = '';
                 if (nextAlarm) {
                     const timeUntilNext = Math.max(0, nextAlarm.nextTime - now);
                     timeDisplay = `Next: ${nextAlarm.name} in ${formatTime(timeUntilNext)}`;
                 } else {
-                    timeDisplay = 'No upcoming alarms';
+                    // Check if we have any pattern controllers still running
+                    const patternController = sequence.alarms.find(a => a.type === 'pattern-controller' && a.currentRepeat < a.repeats);
+                    if (patternController) {
+                        timeDisplay = 'Pattern running...';
+                    } else {
+                        timeDisplay = 'Sequence completing...';
+                    }
                 }
                 
                 html += `
@@ -1296,6 +1514,7 @@
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
                     dismissAllAlarms();
+                    cancelDelete();
                 }
             });
         }
