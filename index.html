@@ -750,10 +750,28 @@
         }
 
         const sounds = {
-            beep: () => playTone(800, 0.2),
-            chime: () => { playTone(523, 0.2); setTimeout(() => playTone(659, 0.2), 200); },
-            bell: () => { playTone(800, 0.1); setTimeout(() => playTone(800, 0.1), 150); }
+            beep: () => {
+                playTone(800, 0.2);
+                vibrate([200, 100, 200]);
+            },
+            chime: () => {
+                playTone(523, 0.2);
+                setTimeout(() => playTone(659, 0.2), 200);
+                vibrate([200, 100, 200, 100, 200]);
+            },
+            bell: () => {
+                playTone(800, 0.1);
+                setTimeout(() => playTone(800, 0.1), 150);
+                vibrate([100, 50, 100, 50, 100]);
+            }
         };
+
+        // Vibration function
+        function vibrate(pattern) {
+            if ('vibrate' in navigator) {
+                navigator.vibrate(pattern);
+            }
+        }
 
         // Tab switching
         function switchTab(tabName) {
