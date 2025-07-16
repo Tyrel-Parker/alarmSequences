@@ -338,6 +338,50 @@
             font-size: 12px;
         }
 
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .notification-error {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .notification-success {
+            background: #51cf66;
+            color: white;
+        }
+
+        .notification-warning {
+            background: #ffd43b;
+            color: #333;
+        }
+
+        .notification-info {
+            background: #339af0;
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -571,6 +615,94 @@
         let alarmCountdowns = {};
         let sequenceToDelete = null;
 
+        // NEW: Notification system
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 4000);
+        }
+
+        // NEW: Default sequences function
+        function createDefaultSequences() {
+            const workdaySequence = {
+                id: 1,
+                name: 'Workday',
+                alarms: [
+                    {
+                        id: 101,
+                        type: 'repeating',
+                        name: 'Squats',
+                        interval: timeToMs(0, 30, 0),
+                        duration: timeToMs(0, 2, 0),
+                        sound: 'beep',
+                        autoDismiss: false
+                    },
+                    {
+                        id: 102,
+                        type: 'single',
+                        name: 'Lunch',
+                        triggerTime: timeToMs(4, 0, 0),
+                        duration: timeToMs(0, 30, 0),
+                        sound: 'chime',
+                        autoDismiss: false
+                    },
+                    {
+                        id: 103,
+                        type: 'repeating',
+                        name: 'Pushups',
+                        interval: timeToMs(1, 0, 0),
+                        duration: timeToMs(0, 1, 0),
+                        sound: 'beep',
+                        autoDismiss: false
+                    },
+                    {
+                        id: 104,
+                        type: 'repeating',
+                        name: 'Plank',
+                        interval: timeToMs(0, 20, 0),
+                        duration: timeToMs(0, 1, 0),
+                        sound: 'bell',
+                        autoDismiss: false
+                    }
+                ]
+            };
+
+            const workoutSequence = {
+                id: 2,
+                name: 'Workout',
+                alarms: [
+                    {
+                        id: 201,
+                        type: 'pattern',
+                        name: 'Pattern (12 steps)',
+                        steps: [
+                            { id: 2011, name: 'Stretch', duration: timeToMs(0, 1, 0), autoDismiss: true },
+                            { id: 2012, name: 'Calf raises', duration: timeToMs(0, 1, 0), autoDismiss: true },
+                            { id: 2013, name: 'Rest', duration: timeToMs(0, 0, 30), autoDismiss: true },
+                            { id: 2014, name: 'Squats', duration: timeToMs(0, 1, 0), autoDismiss: true },
+                            { id: 2015, name: 'Rest', duration: timeToMs(0, 0, 30), autoDismiss: true },
+                            { id: 2016, name: 'Situps', duration: timeToMs(0, 1, 0), autoDismiss: true },
+                            { id: 2017, name: 'Rest', duration: timeToMs(0, 0, 30), autoDismiss: true },
+                            { id: 2018, name: 'Pushups', duration: timeToMs(0, 1, 0), autoDismiss: true },
+                            { id: 2019, name: 'Rest', duration: timeToMs(0, 0, 30), autoDismiss: true },
+                            { id: 20110, name: 'Shoulder press', duration: timeToMs(0, 1, 0), autoDismiss: true },
+                            { id: 20111, name: 'Rest', duration: timeToMs(0, 0, 30), autoDismiss: true },
+                            { id: 20112, name: 'Downward facing dog', duration: timeToMs(0, 1, 0), autoDismiss: true }
+                        ],
+                        repeats: 5
+                    }
+                ]
+            };
+
+            return [workdaySequence, workoutSequence];
+        }
+
         // Sound generation
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         
@@ -624,9 +756,9 @@
             }
         }
 
-        // Add single alarm
+        // Add single alarm - ENHANCED with validation
         function addSingleAlarm() {
-            const name = document.getElementById('singleAlarmName').value;
+            const name = document.getElementById('singleAlarmName').value.trim();
             const triggerHours = parseInt(document.getElementById('singleTriggerHours').value) || 0;
             const triggerMinutes = parseInt(document.getElementById('singleTriggerMinutes').value) || 0;
             const durationMinutes = parseInt(document.getElementById('singleDurationMinutes').value) || 0;
@@ -634,8 +766,14 @@
             const sound = document.getElementById('singleAlarmSound').value;
             const autoDismiss = document.getElementById('singleAutoDismiss').checked;
 
+            // NEW: Validation with notifications
             if (!name) {
-                alert('Please enter an alarm name');
+                showNotification('Please enter an alarm name', 'error');
+                return;
+            }
+
+            if (durationMinutes === 0 && durationSeconds === 0) {
+                showNotification('Please set a duration greater than 0', 'error');
                 return;
             }
 
@@ -652,11 +790,12 @@
             currentSequence.push(alarm);
             renderCurrentSequence();
             document.getElementById('singleAlarmName').value = '';
+            showNotification('Single alarm added successfully', 'success');
         }
 
-        // Add repeating alarm
+        // Add repeating alarm - ENHANCED with validation
         function addRepeatingAlarm() {
-            const name = document.getElementById('repeatAlarmName').value;
+            const name = document.getElementById('repeatAlarmName').value.trim();
             const intervalMinutes = parseInt(document.getElementById('repeatIntervalMinutes').value) || 0;
             const intervalSeconds = parseInt(document.getElementById('repeatIntervalSeconds').value) || 0;
             const durationMinutes = parseInt(document.getElementById('repeatDurationMinutes').value) || 0;
@@ -664,8 +803,19 @@
             const sound = document.getElementById('repeatAlarmSound').value;
             const autoDismiss = document.getElementById('repeatAutoDismiss').checked;
 
+            // NEW: Validation with notifications
             if (!name) {
-                alert('Please enter an alarm name');
+                showNotification('Please enter an alarm name', 'error');
+                return;
+            }
+
+            if (intervalMinutes === 0 && intervalSeconds === 0) {
+                showNotification('Please set an interval greater than 0', 'error');
+                return;
+            }
+
+            if (durationMinutes === 0 && durationSeconds === 0) {
+                showNotification('Please set a duration greater than 0', 'error');
                 return;
             }
 
@@ -682,17 +832,24 @@
             currentSequence.push(alarm);
             renderCurrentSequence();
             document.getElementById('repeatAlarmName').value = '';
+            showNotification('Repeating alarm added successfully', 'success');
         }
 
-        // Pattern functions
+        // Pattern functions - ENHANCED with validation
         function addPatternStep() {
-            const name = document.getElementById('patternStepName').value;
+            const name = document.getElementById('patternStepName').value.trim();
             const durationMinutes = parseInt(document.getElementById('patternStepDurationMinutes').value) || 0;
             const durationSeconds = parseInt(document.getElementById('patternStepDurationSeconds').value) || 0;
             const autoDismiss = document.getElementById('patternStepAutoDismiss').checked;
 
+            // NEW: Validation with notifications
             if (!name) {
-                alert('Please enter a step name');
+                showNotification('Please enter a step name', 'error');
+                return;
+            }
+
+            if (durationMinutes === 0 && durationSeconds === 0) {
+                showNotification('Please set a duration greater than 0', 'error');
                 return;
             }
 
@@ -706,6 +863,7 @@
             currentPatternSteps.push(step);
             renderPatternSteps();
             document.getElementById('patternStepName').value = '';
+            showNotification('Pattern step added successfully', 'success');
         }
 
         function renderPatternSteps() {
@@ -743,7 +901,6 @@
             renderPatternSteps();
         }
 
-        // Move pattern steps up/down
         function movePatternStepUp(index) {
             if (index > 0) {
                 [currentPatternSteps[index], currentPatternSteps[index - 1]] = [currentPatternSteps[index - 1], currentPatternSteps[index]];
@@ -758,25 +915,23 @@
             }
         }
 
-        // Edit pattern step function
         function editPatternStep(index) {
             const step = currentPatternSteps[index];
             
-            // Populate the form
             document.getElementById('patternStepName').value = step.name;
             const time = msToTime(step.duration);
             document.getElementById('patternStepDurationMinutes').value = time.minutes;
             document.getElementById('patternStepDurationSeconds').value = time.seconds;
             document.getElementById('patternStepAutoDismiss').checked = step.autoDismiss;
             
-            // Remove the step so it doesn't duplicate when re-added
             currentPatternSteps.splice(index, 1);
             renderPatternSteps();
         }
 
         function addPatternToSequence() {
+            // NEW: Validation with notifications
             if (currentPatternSteps.length === 0) {
-                alert('Please add at least one pattern step');
+                showNotification('Please add at least one pattern step', 'error');
                 return;
             }
 
@@ -796,9 +951,9 @@
             currentPatternSteps = [];
             renderPatternSteps();
             document.getElementById('patternRepeats').value = '1';
+            showNotification('Pattern added to sequence successfully', 'success');
         }
 
-        // Render current sequence
         function renderCurrentSequence() {
             const container = document.getElementById('currentSequenceAlarms');
             container.innerHTML = '';
@@ -866,12 +1021,10 @@
             renderCurrentSequence();
         }
 
-        // Edit alarm function
         function editAlarm(index) {
             const alarm = currentSequence[index];
             
             if (alarm.type === 'single') {
-                // Switch to single tab and populate
                 switchTab('single');
                 document.getElementById('singleAlarmName').value = alarm.name;
                 const triggerTime = msToTime(alarm.triggerTime);
@@ -884,7 +1037,6 @@
                 document.getElementById('singleAutoDismiss').checked = alarm.autoDismiss;
                 
             } else if (alarm.type === 'repeating') {
-                // Switch to repeating tab and populate
                 switchTab('repeating');
                 document.getElementById('repeatAlarmName').value = alarm.name;
                 const interval = msToTime(alarm.interval);
@@ -897,19 +1049,16 @@
                 document.getElementById('repeatAutoDismiss').checked = alarm.autoDismiss;
                 
             } else if (alarm.type === 'pattern') {
-                // Switch to pattern tab and load steps
                 switchTab('pattern');
                 currentPatternSteps = [...alarm.steps];
                 document.getElementById('patternRepeats').value = alarm.repeats;
                 renderPatternSteps();
             }
             
-            // Remove the alarm from sequence so it doesn't duplicate when re-added
             currentSequence.splice(index, 1);
             renderCurrentSequence();
         }
 
-        // Helper function to convert milliseconds to time components
         function msToTime(ms) {
             const totalSeconds = Math.floor(ms / 1000);
             const hours = Math.floor(totalSeconds / 3600);
@@ -923,22 +1072,20 @@
             currentPatternSteps = [];
             renderCurrentSequence();
             renderPatternSteps();
-            
-            // If we're editing, don't clear the editing state - user might want to start over
-            // Only clear the form contents
         }
 
-        // Save and load
+        // Save sequence - ENHANCED with validation
         function saveSequence() {
-            const name = document.getElementById('sequenceName').value;
+            const name = document.getElementById('sequenceName').value.trim();
             
+            // NEW: Validation with notifications
             if (!name) {
-                alert('Please enter a sequence name');
+                showNotification('Please enter a sequence name', 'error');
                 return;
             }
 
             if (currentSequence.length === 0) {
-                alert('Please add at least one alarm to the sequence');
+                showNotification('Please add at least one alarm to the sequence', 'error');
                 return;
             }
 
@@ -954,13 +1101,14 @@
                 if (index !== -1) {
                     savedSequences[index] = sequence;
                 }
-                // Reset editing state
                 editingSequenceId = null;
                 document.getElementById('editingIndicator').style.display = 'none';
                 document.getElementById('saveButtonText').textContent = 'Save Sequence';
+                showNotification('Sequence updated successfully', 'success');
             } else {
                 console.log('Creating new sequence:', name);
                 savedSequences.push(sequence);
+                showNotification('Sequence saved successfully', 'success');
             }
 
             saveData();
@@ -974,9 +1122,19 @@
             localStorage.setItem('alarmSequences', JSON.stringify(savedSequences));
         }
 
+        // Load saved data - ENHANCED with default sequences
         function loadSavedData() {
             const saved = JSON.parse(localStorage.getItem('alarmSequences') || '[]');
-            savedSequences = saved;
+            
+            // NEW: Create default sequences if storage is empty
+            if (saved.length === 0) {
+                savedSequences = createDefaultSequences();
+                saveData();
+                showNotification('Default sequences loaded: Workday and Workout', 'info');
+            } else {
+                savedSequences = saved;
+            }
+            
             renderSavedSequences();
         }
 
@@ -1014,7 +1172,6 @@
 
             editingSequenceId = sequenceId;
             
-            // Show editing indicator
             document.getElementById('editingSequenceName').textContent = sequence.name;
             document.getElementById('editingIndicator').style.display = 'block';
             document.getElementById('saveButtonText').textContent = 'Update Sequence';
@@ -1027,7 +1184,6 @@
         }
 
         function cancelEdit() {
-            // Restore the original sequence if it exists
             if (editingSequenceId) {
                 const originalSequence = savedSequences.find(s => s.id === editingSequenceId);
                 if (originalSequence) {
@@ -1035,12 +1191,10 @@
                 }
             }
             
-            // Reset editing state
             editingSequenceId = null;
             document.getElementById('editingIndicator').style.display = 'none';
             document.getElementById('saveButtonText').textContent = 'Save Sequence';
             
-            // Clear the form
             document.getElementById('sequenceName').value = '';
             clearCurrentSequence();
             
@@ -1050,16 +1204,13 @@
         function deleteSequence(sequenceId) {
             console.log('Delete button clicked for sequence ID:', sequenceId);
             
-            // Find the sequence name for display
             const sequence = savedSequences.find(s => s.id === sequenceId);
             const sequenceName = sequence ? sequence.name : 'Unknown';
             
-            // Store the ID and show inline confirmation
             sequenceToDelete = sequenceId;
             document.getElementById('deleteSequenceName').textContent = `"${sequenceName}" will be permanently deleted.`;
             document.getElementById('deleteConfirmation').style.display = 'block';
             
-            // Scroll to make sure it's visible
             document.getElementById('deleteConfirmation').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
@@ -1085,7 +1236,6 @@
             saveData();
             renderSavedSequences();
             
-            // Stop if running
             const runningIndex = runningSequences.findIndex(rs => rs.sequenceId === sequenceToDelete);
             if (runningIndex !== -1) {
                 console.log('Also stopping running sequence');
@@ -1101,7 +1251,6 @@
         }
 
         function closeDeleteModal() {
-            // Keep this for compatibility but redirect to new function
             cancelDelete();
         }
 
@@ -1123,7 +1272,6 @@
                 isActive: true
             };
 
-            // Process alarms
             sequence.alarms.forEach(alarm => {
                 if (alarm.type === 'single') {
                     runningSequence.alarms.push({
@@ -1169,9 +1317,8 @@
                     if (alarm.type === 'pattern-controller') {
                         handlePatternController(runningSequence, alarm, now);
                     } else if (alarm.nextTime <= now && !alarm.isActive && !alarm.hasTriggered) {
-                        // For single alarms, check if they haven't been triggered yet
                         if (alarm.type === 'single' && alarm.hasTriggered) {
-                            return; // Skip if single alarm already triggered
+                            return;
                         }
                         
                         triggerAlarm(runningSequence, alarm);
@@ -1303,7 +1450,7 @@
                     if (remaining <= 0) {
                         const alarm = activeAlarmModals.find(a => a.id === alarmId);
                         if (alarm) {
-                            alarm.isFinished = true; // Mark alarm as finished
+                            alarm.isFinished = true;
                             if (!alarm.alarm.autoDismiss) {
                                 topCountdownElement.textContent = 'FINISHED';
                                 topCountdownElement.style.color = '#4caf50';
@@ -1389,7 +1536,6 @@
             console.log('Dismiss completed called');
             console.log('Active alarms before:', activeAlarmModals.length);
             
-            // Remove alarms that are marked as finished
             const completedCount = activeAlarmModals.filter(alarm => alarm.isFinished).length;
             console.log('Found', completedCount, 'completed alarms');
             
@@ -1427,7 +1573,6 @@
         function renderRunningSequences() {
             const container = document.getElementById('runningSequences');
             
-            // Clean up finished sequences
             runningSequences = runningSequences.filter(sequence => {
                 const hasActiveAlarms = sequence.alarms.some(a => a.isActive);
                 const hasUpcomingRepeatingAlarms = sequence.alarms.some(a => 
@@ -1440,7 +1585,6 @@
                     a.type === 'pattern-controller' && a.currentRepeat < a.repeats
                 );
                 
-                // Keep sequence if it has any active or upcoming alarms
                 const shouldKeep = hasActiveAlarms || hasUpcomingRepeatingAlarms || hasUpcomingSingleAlarms || hasUpcomingPatterns;
                 
                 if (!shouldKeep) {
@@ -1471,7 +1615,6 @@
                     const timeUntilNext = Math.max(0, nextAlarm.nextTime - now);
                     timeDisplay = `Next: ${nextAlarm.name} in ${formatTime(timeUntilNext)}`;
                 } else {
-                    // Check if we have any pattern controllers still running
                     const patternController = sequence.alarms.find(a => a.type === 'pattern-controller' && a.currentRepeat < a.repeats);
                     if (patternController) {
                         timeDisplay = 'Pattern running...';
