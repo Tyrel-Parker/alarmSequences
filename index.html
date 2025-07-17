@@ -1651,30 +1651,62 @@
             runningSequences.forEach(sequence => {
                 const now = Date.now();
                 const activeAlarms = sequence.alarms.filter(a => a.isActive);
-                const nextAlarm = sequence.alarms.filter(a => 
+                
+                // Get all upcoming alarms (not just the next one)
+                const upcomingAlarms = sequence.alarms.filter(a => 
                     !a.isActive && 
                     ((a.type === 'repeating') || (a.type === 'single' && !a.hasTriggered))
-                ).reduce((next, alarm) => !next || alarm.nextTime < next.nextTime ? alarm : next, null);
+                ).map(alarm => ({
+                    ...alarm,
+                    timeUntilNext: Math.max(0, alarm.nextTime - now)
+                })).sort((a, b) => a.timeUntilNext - b.timeUntilNext);
                 
-                let timeDisplay = '';
-                if (nextAlarm) {
-                    const timeUntilNext = Math.max(0, nextAlarm.nextTime - now);
-                    timeDisplay = `Next: ${nextAlarm.name} in ${formatTime(timeUntilNext)}`;
-                } else {
-                    const patternController = sequence.alarms.find(a => a.type === 'pattern-controller' && a.currentRepeat < a.repeats);
-                    if (patternController) {
-                        timeDisplay = 'Pattern running...';
-                    } else {
-                        timeDisplay = 'Sequence completing...';
-                    }
-                }
+                // Check for pattern controllers
+                const patternController = sequence.alarms.find(a => a.type === 'pattern-controller' && a.currentRepeat < a.repeats);
                 
                 html += `
                     <div class="running-sequence">
-                        <div class="running-sequence-header">${sequence.name}</div>
-                        <div class="time-remaining">${timeDisplay}</div>
-                        ${activeAlarms.length > 0 ? `<div style="color: #ff6b6b; font-weight: 600; margin-top: 5px;">🔔 Active: ${activeAlarms.map(a => a.name || 'Pattern Step').join(', ')}</div>` : ''}
-                        <button class="btn btn-danger" style="margin-top: 10px;" onclick="stopSequence(${sequence.sequenceId})">Stop</button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div class="running-sequence-header" style="margin-bottom: 0;">${sequence.name}</div>
+                            <button class="btn btn-danger btn-small" onclick="stopSequence(${sequence.sequenceId})">Stop</button>
+                        </div>
+                `;
+                
+                // Show active alarms
+                if (activeAlarms.length > 0) {
+                    html += `<div style="color: #ff6b6b; font-weight: 600; margin-bottom: 8px;">🔔 Active: ${activeAlarms.map(a => a.name || 'Pattern Step').join(', ')}</div>`;
+                }
+                
+                // Show upcoming alarms in a compact format
+                if (upcomingAlarms.length > 0) {
+                    html += `<div style="margin-bottom: 8px;">
+                        <div style="font-weight: 600; color: #1976d2; font-size: 14px; margin-bottom: 4px;">⏰ Upcoming:</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    `;
+                    
+                    upcomingAlarms.forEach(alarm => {
+                        html += `
+                            <span style="background: #e3f2fd; padding: 4px 8px; border-radius: 4px; font-size: 12px; border-left: 3px solid #2196f3;">
+                                <span style="color: #333; font-weight: 500;">${alarm.name}</span>
+                                <span style="color: #1976d2; font-weight: 600; margin-left: 4px;">${formatTime(alarm.timeUntilNext)}</span>
+                            </span>
+                        `;
+                    });
+                    
+                    html += `</div></div>`;
+                }
+                
+                // Show pattern status
+                if (patternController && upcomingAlarms.length === 0) {
+                    html += `<div style="color: #1976d2; font-weight: 600; margin-bottom: 8px; font-size: 14px;">🔄 Pattern running...</div>`;
+                }
+                
+                // Show completion status
+                if (upcomingAlarms.length === 0 && !patternController && activeAlarms.length === 0) {
+                    html += `<div style="color: #666; font-style: italic; margin-bottom: 8px; font-size: 14px;">Sequence completing...</div>`;
+                }
+                
+                html += `
                     </div>
                 `;
             });
